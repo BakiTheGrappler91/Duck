@@ -6,6 +6,11 @@ import fs from 'fs/promises';
 // node:crypto module provides cryptographic functionality that includes a set of wrappers for OpeenSSL's hash, HMAC, cipher, decipher, sign and verify functions
 import crypto from 'crypto';
 
+import chalk from 'chalk'
+
+// NOTE: in future could write own diff algorithm.  import diff module for the time being.
+import { diffLines } from 'diff';
+
 class Duck {
 
     // Create constuctor for initialising an object instance of this class. Set paths and init
@@ -71,8 +76,6 @@ class Duck {
         await fs.writeFile(this.headPath, commitHash); // update the HEAD to point to the new commit
         await fs.writeFile(this.indexPath, JSON.stringify([])); // clear the staging area
         console.log(`Commit successfully created: ${commitHash}`);
-
-
     }
 
     async getCurrentHead() {
@@ -83,10 +86,90 @@ class Duck {
         }
     }
 
+    async log() {
+        let currentCommitHash = await this.getCurrentHead();
+        while(currentCommitHash) {
+            const commitData = JSON.parse(await fs.readFile(path.join(this.objectsPath, currentCommitHash), { encoding: 'utf-8'}));
+            console.log(`------------------------------\n`)
+            console.log(`Commit: ${currentCommitHash}\nDate:
+                ${commitData.timeStamp}\n\n${commitData.message}\n\n`);
+            currentCommitHash = commitData.parent;
+        }        
+    }
+
+    async showCommitDiff(commitHash) {
+        const commitData = JSON.parse(await this.getCommitData(commitHash));
+        if(!commitData) {
+            console.log("Commit not found");
+            return;
+        }
+        console.log("Changes in the last commit are: ");
+
+        for (const file of commitData.files) {
+            console.log(`File: ${file.path}`);
+            const fileContent = await this.getFileContent(file.hash);
+            console.log(fileContent);
+
+            if(commitData.parent) {
+                // get the parent commit data
+                const parentCommitData = JSON.parse(await this.getCommitData(commitData.parent));
+                const getParentFileContent = await this.getParentFileContent(parentCommitData, file.path);
+                if(getParentFileContent !== undefined) {
+                    console.log('\nDiff:');
+                    const diff = diffLines(getParentFileContent, fileContent);
+
+                    console.log(diff);
+
+                    diff.forEach(part => {
+                        if(part.added) {
+                            process.stdout.write(chalk.green(part.value));
+                        } else if(part.removed) {
+                            process.stdout.write(chalk.red(part.value));
+                        } else {
+                            process.stdout.write(chalk.grey(part.value));
+                        }
+                    });
+                    console.log(); // new line
+                } else {
+                    console.log("New file in this commit");
+                }
+
+            } else {
+                console.log("First commit");
+            }
+
+        }
+    }
+
+    async getParentFileContent(parentCommitData, filePath) {
+        const parentFile = parentCommitData.files.find(file => file.path === filePath);
+        if(parentFile) {
+            // get the file content from the parent commit and return the content
+            return await this.getFileContent(parentFile.hash);
+        }
+    }
+
+    async getCommitData(commitHash) {
+        const commitPath = path.join(this.objectsPath, commitHash);
+        try {
+            return await fs.readFile(commitPath, { encoding: 'utf-8' });
+        } catch (error) {
+            console.log("Failed to read the commit data", error);
+            return null;
+        }
+    }
+
+    async getFileContent(fileHash) {
+        const objectPath = path.join(this.objectsPath, fileHash);
+        return fs.readFile(objectPath, { encoding: 'utf-8' });
+    }
+
 }
 
 (async () => {
     const duck = new Duck();
-    await duck.add('sample.txt');
-    await duck.commit('Initial commit');
+    // await duck.add('sample.txt');
+    // await duck.commit('Third commit');
+    // await duck.log();
+    await duck.showCommitDiff('7b579ece30905daaf28a102c336789001e6146db')
 })();
