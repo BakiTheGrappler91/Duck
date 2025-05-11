@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 import path from 'path';
 
 // fs module helps access file system, create folders and files
@@ -10,6 +12,10 @@ import chalk from 'chalk'
 
 // NOTE: in future could write own diff algorithm.  import diff module for the time being.
 import { diffLines } from 'diff';
+
+import { Command } from 'commander';
+
+const program = new Command();
 
 class Duck {
 
@@ -118,13 +124,13 @@ class Duck {
                     console.log('\nDiff:');
                     const diff = diffLines(getParentFileContent, fileContent);
 
-                    console.log(diff);
+                    // console.log(diff);
 
                     diff.forEach(part => {
                         if(part.added) {
-                            process.stdout.write(chalk.green(part.value));
+                            process.stdout.write(chalk.green("++" + part.value));
                         } else if(part.removed) {
-                            process.stdout.write(chalk.red(part.value));
+                            process.stdout.write(chalk.red("--" + part.value));
                         } else {
                             process.stdout.write(chalk.grey(part.value));
                         }
@@ -166,10 +172,37 @@ class Duck {
 
 }
 
-(async () => {
+// (async () => {
+//     const duck = new Duck();
+//     // await duck.add('sample.txt');
+//     // await duck.add('sample2.txt');
+//     // await duck.commit('Second commit');
+//     // await duck.log();
+//     await duck.showCommitDiff('3e670e4e9ecc16928f1fd1b0a1ea1dbced0402c4')
+// })();
+
+program.command('init').action(async () => {
     const duck = new Duck();
-    // await duck.add('sample.txt');
-    // await duck.commit('Third commit');
-    // await duck.log();
-    await duck.showCommitDiff('7b579ece30905daaf28a102c336789001e6146db')
-})();
+});
+
+program.command('add <file>').action(async (file) => {
+    const duck = new Duck();
+    await duck.add(file);
+});
+
+program.command('commit <message>').action(async (message) => {
+    const duck = new Duck();
+    await duck.commit(message);
+});
+
+program.command('log').action(async () => {
+    const duck = new Duck();
+    await duck.log();
+});
+
+program.command('show <commitHash>').action(async (commitHash) => {
+    const duck = new Duck();
+    await duck.showCommitDiff(commitHash);
+});
+
+program.parse(process.argv);
