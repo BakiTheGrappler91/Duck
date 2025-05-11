@@ -1,4 +1,4 @@
-# 🦆 Duck - A Lightweight Git-Like Version Control CLI
+# 🦆 Duck - A Lightweight Git-Like Version Control System
 
 **Duck** is a simple, educational version control system inspired by Git. It's built using Node.js and lets you initialize a repository, add files to a staging area, commit changes, and view commit history — all from the command line.
 
